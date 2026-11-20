@@ -1,4 +1,5 @@
 import os
+import re
 import json
 
 import streamlit as st
@@ -84,6 +85,17 @@ def build_tools(profile):
     return [{"type": "file_search", "vector_store_ids": vector_store_ids}]
 
 
+# The model embeds inline citation markers like "\ue200filecite\ue202turn0file2\ue201"
+# (private-use chars render invisibly, leaving "fileciteturn0file2"). Sources are
+# listed from annotations instead, so strip the markers, including one still
+# being streamed (no closing char yet).
+CITATION_MARKER_RE = re.compile(r"\s*\ue200[^\ue201]*(?:\ue201|$)")
+
+
+def strip_citation_markers(text):
+    return CITATION_MARKER_RE.sub("", text)
+
+
 def format_citations(response):
     filenames = []
     for item in response.output:
@@ -119,9 +131,9 @@ def run_stream(user_input, profile):
         for event in stream:
             if event.type == "response.output_text.delta":
                 text += event.delta
-                placeholder.markdown(text, True)
+                placeholder.markdown(strip_citation_markers(text), True)
             elif event.type == "response.completed":
-                text += format_citations(event.response)
+                text = strip_citation_markers(text) + format_citations(event.response)
                 placeholder.markdown(text, True)
             elif event.type in ("response.failed", "error"):
                 st.error("The assistant failed to respond. Please try again.")
