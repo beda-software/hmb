@@ -139,13 +139,6 @@ def render_chat():
 if "chat_log" not in st.session_state:
     st.session_state.chat_log = []
 
-if "in_progress" not in st.session_state:
-    st.session_state.in_progress = False
-
-
-def disable_form():
-    st.session_state.in_progress = True
-
 
 def login():
     if st.session_state["authentication_status"] is False:
@@ -156,25 +149,20 @@ def login():
 
 def reset_chat():
     st.session_state.chat_log = []
-    st.session_state.in_progress = False
     st.session_state.pop("conversation_id", None)
 
 
 def load_chat_screen(profile):
     st.title(profile.get("title", ""))
-    user_msg = st.chat_input(
-        "Message", on_submit=disable_form, disabled=st.session_state.in_progress
-    )
+    # Disables the input while the response streams.
+    user_msg = st.chat_input("Message", submit_mode="disable")
     if user_msg:
         render_chat()
         with st.chat_message("user"):
             st.markdown(user_msg, True)
         st.session_state.chat_log.append({"name": "user", "msg": user_msg})
 
-        try:
-            run_stream(user_msg, profile)
-        finally:
-            st.session_state.in_progress = False
+        run_stream(user_msg, profile)
         st.rerun()
 
     render_chat()
